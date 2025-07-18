@@ -1,0 +1,64 @@
+data:
+  class_path: pl_modules.InferenceDataModule
+  init_args:
+    slice_dataset: data.CmrxReconInferenceSliceDataset
+    data_path: /common/lidxxlab/cmrchallenge/data/CMR2025/Validation/Task2/TaskR2/MultiCoil
+    # data_path: /common/lidxxlab/cmrchallenge/data/CMR_2024_inference_sample/MultiCoil
+    challenge: multicoil
+    test_transform:
+      class_path: data.CmrxReconDataTransform
+ #     init_args:
+ #       mask_func: 
+ #         class_path: data.subsample.CmrxRecon25MaskFunc
+ #         init_args:
+ #           mask_path: /common/lidxxlab/cmrchallenge/data/CMR2025/Processed/Mask/summary.h5
+ #           num_adj_slices: 5
+ #           num_low_frequencies:
+ #           - 16
+      init_args:
+        mask_func: null
+        uniform_resolution: null
+        use_seed: True
+        mask_type: 'cartesian_or_radial'
+        test_num_low_frequencies: 16
+        uniform_resolution: null
+        use_seed: true
+        
+        # test_num_low_frequencies: -1   # If mask_func is none, use this parameter
+    num_adj_slices: 5
+    batch_size: 1
+#   num_workers: 4
+    distributed_sampler: true
+    test_filter: 
+      class_path: data.FuncFilterString
+      init_args:
+        filter_str: T1w/ValidationSet/UnderSample_TaskR2
+
+
+# dataset specific settings
+seed_everything: 42
+trainer:
+  accelerator: gpu
+  strategy: ddp
+  devices: auto
+  num_nodes: 1
+  logger: false
+  callbacks:
+    -
+      class_path: __main__.CustomWriter
+      init_args:
+        output_dir: /common/lidxxlab/chushu/PromptMR-plus/output_chushu/Inference_test
+        write_interval: batch_and_epoch
+
+model:
+  class_path: pl_modules.PromptMrModule
+  init_args:
+    pretrain: false
+    pretrain_weights_path: null
+
+ckpt_path: /common/lidxxlab/cmrchallenge/code/chaowei/experiments/cmr25/promptmr-plus/CMR2025/deep_recon/uec2kxvx/checkpoints/last.ckpt
+
+
+
+
+# python main.py predict --config configs/inference/pmr-plus/cmr25-task2-val.yaml

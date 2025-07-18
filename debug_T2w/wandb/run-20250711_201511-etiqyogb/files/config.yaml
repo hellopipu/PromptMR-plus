@@ -1,0 +1,121 @@
+_wandb:
+    value:
+        cli_version: 0.19.8
+        m:
+            - "1": trainer/global_step
+              "6":
+                - 3
+              "7": []
+        python_version: 3.12.9
+        t:
+            "1":
+                - 1
+                - 41
+                - 55
+                - 106
+            "2":
+                - 1
+                - 41
+                - 55
+                - 106
+            "3":
+                - 7
+                - 13
+                - 15
+                - 18
+                - 23
+                - 55
+                - 66
+            "4": 3.12.9
+            "5": 0.19.8
+            "8":
+                - 5
+            "12": 0.19.8
+            "13": linux-x86_64
+adaptive_input:
+    value: true
+compute_sens_per_coil:
+    value: false
+feature_dim:
+    value:
+        - 72
+        - 96
+        - 120
+learnable_prompt:
+    value: false
+len_prompt:
+    value:
+        - 5
+        - 5
+        - 5
+lr:
+    value: 0.0002
+lr_gamma:
+    value: 0.1
+lr_step_size:
+    value: 11
+model_version:
+    value: promptmr_v2
+n_bottleneck_cab:
+    value: 3
+n_buffer:
+    value: 4
+n_dec_cab:
+    value:
+        - 2
+        - 2
+        - 3
+n_enc_cab:
+    value:
+        - 2
+        - 3
+        - 3
+n_feat0:
+    value: 48
+n_history:
+    value: 11
+n_skip_cab:
+    value:
+        - 1
+        - 1
+        - 1
+no_use_ca:
+    value: false
+num_adj_slices:
+    value: 5
+num_cascades:
+    value: 12
+num_log_images:
+    value: 16
+pretrain:
+    value: true
+pretrain_weights_path:
+    value: /common/lidxxlab/cmrchallenge/code/PromptMR-plus/weights/cmr24-cardiac/promptmr-plus-epoch=11-step=337764.ckpt
+prompt_dim:
+    value:
+        - 24
+        - 48
+        - 72
+prompt_size:
+    value:
+        - 64
+        - 32
+        - 16
+sens_feature_dim:
+    value:
+        - 36
+        - 48
+        - 60
+sens_n_feat0:
+    value: 24
+sens_prompt_dim:
+    value:
+        - 12
+        - 24
+        - 36
+use_checkpoint:
+    value: false
+use_sens_adj:
+    value: true
+weight_decay:
+    value: 0.01

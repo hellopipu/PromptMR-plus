@@ -5,7 +5,7 @@ import torch
 
 from data.subsample import MaskFunc
 from mri_utils import fft2c, ifft2c, rss_complex, complex_abs
-from data.subsample import CmrxRecon24MaskFunc, PoissonDiscMaskFunc
+from data.subsample import CmrxRecon24MaskFunc, PoissonDiscMaskFunc,CmrxRecon25MaskFunc
 def to_tensor(data: np.ndarray) -> torch.Tensor:
     """
     Convert numpy array to PyTorch tensor.
@@ -54,7 +54,7 @@ def apply_mask(
                 in the mask.
     """
     shape = (1,) * len(data.shape[:-3]) + tuple(data.shape[-3:])
-    if isinstance(mask_func, CmrxRecon24MaskFunc):
+    if isinstance(mask_func, CmrxRecon24MaskFunc) or isinstance(mask_func, CmrxRecon25MaskFunc):
         if num_t is not None:
             mask, num_low_frequencies, mask_type = mask_func(shape, offset, seed, slice_idx,num_t,num_slc)
         else:

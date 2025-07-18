@@ -1,0 +1,74 @@
+ckpt_path: null
+data:
+  class_path: pl_modules.DataModule
+  init_args:
+    batch_size: 1
+    challenge: multicoil
+    combine_train_val: false
+    data_balancer:
+      class_path: data.BalanceSampler
+      init_args:
+        ratio_dict:
+          T1map: 1
+          T1rho: 2
+          T1w: 2
+          T2map: 1
+          T2smap: 8
+          T2w: 2
+          cine_lax: 1
+          lge_lax: 1
+          cine_sax: 1
+          lge_sax: 1
+          cine_ot: 5
+          cine_lvot: 8
+          cine_rvot: 8
+          perfusion: 2
+          blackblood: 8
+          flow2d: 4
+
+    data_path: /common/lidxxlab/cmrchallenge/data/CMR2025/Processed
+    distributed_sampler: true
+    num_adj_slices: 5
+    slice_dataset: data.CmrxReconSliceDataset
+    train_transform:
+      class_path: data.CmrxReconDataTransform
+      init_args:
+        mask_func:
+          class_path: data.subsample.CmrxRecon25MaskFunc
+          init_args:
+            mask_path: /common/lidxxlab/cmrchallenge/data/CMR2025/Processed/Mask/summary.h5
+            num_adj_slices: 5
+            num_low_frequencies:
+            - 16
+        uniform_resolution: null
+        use_seed: true
+    use_dataset_cache_file: false
+    val_transform:
+      class_path: data.CmrxReconDataTransform
+      init_args:
+        mask_func:
+          class_path: data.subsample.CmrxRecon25MaskFunc
+          init_args:
+            mask_path: /common/lidxxlab/cmrchallenge/data/CMR2025/Processed/Mask/summary.h5
+            num_adj_slices: 5
+            num_low_frequencies:
+            - 16
+        uniform_resolution: null
+        use_seed: true
+model:
+  class_path: pl_modules.PromptMrModule
+  init_args:
+    lr: 0.0002
+    lr_step_size: 11
+trainer:
+  devices: 4
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      name: cmr25-cardiac-pmr-plus
+      save_dir: exp/cmr25-cardiac/pmr-plus
+      tags:
+      - cmr25-cardiac
+  max_epochs: 12
+  num_nodes: 1
+  strategy: ddp

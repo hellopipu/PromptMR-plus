@@ -26,6 +26,7 @@ from .subsample import (
     EquispacedMaskFractionFunc,
     FixedLowRandomMaskFunc,
     CmrxRecon24MaskFunc,
+    CmrxRecon25MaskFunc,
     CmrxRecon24TestValMaskFunc
 )
 

@@ -81,6 +81,7 @@ class DataModule(L.LightningDataModule):
     implementations should inherit from this class and override/implement necessary methods.
     """
 
+
     def __init__(
         self,
         slice_dataset: str,
@@ -101,6 +102,7 @@ class DataModule(L.LightningDataModule):
         distributed_sampler: bool = False,
         num_adj_slices: int = 5,
         data_balancer: Optional[Callable] = None,
+        use_pre_whiten: bool = False,
     ):
         super().__init__()
 
@@ -127,7 +129,7 @@ class DataModule(L.LightningDataModule):
         self.distributed_sampler = distributed_sampler
         self.num_adj_slices = num_adj_slices
         self.data_balancer = data_balancer
-
+        self.use_pre_whiten = use_pre_whiten
     def _create_data_loader(
         self,
         slice_dataset: Type,
@@ -187,6 +189,7 @@ class DataModule(L.LightningDataModule):
                 raw_sample_filter=raw_sample_filter,
                 data_balancer=self.data_balancer,
                 num_adj_slices = self.num_adj_slices,
+                use_pre_whiten=self.use_pre_whiten,
             )
         else:
             data_path = self.data_path / f"{prefix}{data_partition}"
@@ -201,6 +204,7 @@ class DataModule(L.LightningDataModule):
                 raw_sample_filter=raw_sample_filter,
                 data_balancer=self.data_balancer,
                 num_adj_slices = self.num_adj_slices,
+                use_pre_whiten=self.use_pre_whiten,
             )
 
         # ensure that entire volumes go to the same GPU in the ddp setting

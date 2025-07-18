@@ -101,6 +101,11 @@ class VolumeSampler(Sampler):
         else:
             indices = self.indices
 
+        # Check for empty indices to avoid division by zero
+        if len(indices) == 0:
+            print(f"Warning: Empty indices for rank {self.rank}. Returning empty iterator.")
+            return iter([])
+
         # add extra samples to match num_samples
         repeat_times = self.num_samples // len(indices)
         indices = indices * repeat_times

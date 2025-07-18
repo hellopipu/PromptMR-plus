@@ -8,6 +8,7 @@ LICENSE file in the root directory of this source tree.
 from pathlib import Path
 from typing import Dict, Optional
 
+import scipy
 import h5py
 import numpy as np
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
@@ -87,31 +88,89 @@ def save_reconstructions_mp(reconstructions: Dict[str, np.ndarray], out_dir: Pat
         pool.starmap(save_single_reconstruction, args)
 
 
-def save_reconstructions(reconstructions: Dict[str, np.ndarray], num_slc_dict, out_dir: Path):
-    """
-    Save reconstruction images.
+# def save_reconstructions_org(reconstructions: Dict[str, np.ndarray], num_slc_dict, out_dir: Path):
+#     """
+#     Save reconstruction images.
 
-    This function writes to h5 files that are appropriate for submission to the
-    leaderboard.
+#     This function writes to h5 files that are appropriate for submission to the
+#     leaderboard.
+
+#     Args:
+#         reconstructions: A dictionary mapping input filenames to corresponding
+#             reconstructions.
+#         out_dir: Path to the output directory where the reconstructions should
+#             be saved.
+#     """
+#     out_dir.mkdir(exist_ok=True, parents=True)
+#     for fname, recons in reconstructions.items():
+#         out_dir.mkdir(exist_ok=True, parents=True)
+#         # make sure folder of  out_dir / fname exists
+#         file_path = out_dir / fname
+#         file_path.parent.mkdir(exist_ok=True, parents=True) # in case fname also contains folders
+        
+#         if fname in num_slc_dict:
+#             recons=recons.squeeze()  # added by chushu0711
+#             t_z, h, w = recons.shape
+#             recons = recons.reshape(t_z//num_slc_dict[fname], num_slc_dict[fname], h, w)
+#         with h5py.File(file_path, "w") as hf:
+#             hf.create_dataset("reconstruction", data=recons)
+            
+
+# def save_reconstructions_modified(outputs, num_slc_dict, out_dir):
+#     out_dir.mkdir(parents=True, exist_ok=True)
+    
+#     for fname, recons in outputs.items():
+#         # --- START OF DEBUGGING BLOCK ---
+#         print("\n-----------------------------------------")
+#         print(f"DEBUG INFO FOR FILE: {fname}")
+        
+#         try:
+#             # 1. Get the actual size of the concatenated data array
+#             actual_total_elements = recons.size
+            
+#             # 2. Get the shape of the concatenated data before reshaping
+#             # This is likely something like [total_slices, width] if you used np.concatenate
+#             original_shape = recons.shape 
+            
+#             # 3. Get the slice count the code is about to use from the buggy dictionary
+#             num_slices_from_dict = num_slc_dict[fname].item()
+            
+#             print(f"  - Shape of concatenated data: {original_shape}")
+#             print(f"  - Total elements collected: {actual_total_elements}")
+#             print(f"  - Slice count being used from dictionary: {num_slices_from_dict}")
+#             print(f"  - Code will now attempt to reshape the {actual_total_elements} elements using a dimension of {num_slices_from_dict} slices.")
+            
+#         except Exception as e:
+#             print(f"  - Error during debug printing: {e}")
+            
+#         print("-----------------------------------------")
+#         # --- END OF DEBUGGING BLOCK ---
+
+#         # This is the original line that causes the crash.
+#         # It is trying to reshape the oversized array using the wrong slice count.
+#         t_z, h, w = recons.shape
+#         recons = recons.reshape(t_z // num_slc_dict[fname], num_slc_dict[fname], h, w)
+
+#         out_fname = out_dir / fname
+#         with h5py.File(out_fname, 'w') as hf:
+#             hf.create_dataset('reconstruction', data=recons)
+            
+
+def save_reconstructions(reconstruction_4d, fname, out_dir):
+    """
+    Saves a 4D reconstruction from a model to an h5 file.
 
     Args:
-        reconstructions: A dictionary mapping input filenames to corresponding
-            reconstructions.
-        out_dir: Path to the output directory where the reconstructions should
-            be saved.
+        reconstruction_4d (torch.Tensor): A 4D tensor with shape [time, slices, height, width].
+        fname (str): The original filename, used to create the output filename.
+        out_dir (pathlib.Path): Path to the output directory.
     """
-    out_dir.mkdir(exist_ok=True, parents=True)
-    for fname, recons in reconstructions.items():
-        out_dir.mkdir(exist_ok=True, parents=True)
-        # make sure folder of  out_dir / fname exists
-        file_path = out_dir / fname
-        file_path.parent.mkdir(exist_ok=True, parents=True) # in case fname also contains folders
-        
-        if fname in num_slc_dict:
-            t_z, h, w = recons.shape
-            recons = recons.reshape(t_z//num_slc_dict[fname], num_slc_dict[fname], h, w)
-        with h5py.File(file_path, "w") as hf:
-            hf.create_dataset("reconstruction", data=recons)
+    out_fname = out_dir / fname
+    out_fname.parent.mkdir(parents=True, exist_ok=True)
+    with h5py.File(out_fname, "w") as hf:
+        # Save the tensor as a numpy array
+        hf.create_dataset("reconstruction", data=reconstruction_4d.cpu().numpy())
+
 
 def loadmat_group(group):
     """
@@ -127,15 +186,19 @@ def loadmat_group(group):
 
 def loadmat(filename):
     """
-    Load Matlab v7.3 format .mat file using h5py.
+    Load Matlab v7.3 format .mat file using h5py; or use scipy.io.loadmat if old mat
     """
-    with h5py.File(filename, 'r') as f:
-        data = {}
-        for k, v in f.items():
-            if isinstance(v, h5py.Dataset):
-                data[k] = v[()]
-            elif isinstance(v, h5py.Group):
-                data[k] = loadmat_group(v)
+    try:
+        with h5py.File(filename, 'r') as f:
+            data = {}
+            for k, v in f.items():
+                if isinstance(v, h5py.Dataset):
+                    data[k] = v[()]
+                elif isinstance(v, h5py.Group):
+                    data[k] = loadmat_group(v)
+    except:
+        data = scipy.io.loadmat(filename)
+        data = data['kspace'].T
     return data
 
 def load_shape(filename):
@@ -160,10 +223,16 @@ def load_kdata(filename):
     '''
     load kdata from .mat file
     return shape: [t,nz,nc,ny,nx]
+    if it is numpy array(old mat file) then no keys
     '''
     data = loadmat(filename)
-    keys = list(data.keys())[0]
-    kdata = data[keys]
-    kdata = kdata['real'] + 1j*kdata['imag']
+    if not isinstance(data, np.ndarray):
+        keys = list(data.keys())[0]
+        kdata = data[keys]
+        kdata = kdata['real'] + 1j*kdata['imag']
+    else:
+        kdata=data
+    if not isinstance(kdata, complex):
+        TypeError # not complex kspace
     return kdata
 

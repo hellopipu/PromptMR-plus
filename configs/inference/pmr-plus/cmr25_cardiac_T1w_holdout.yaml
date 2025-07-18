@@ -1,0 +1,77 @@
+data:
+  class_path: pl_modules.DataModule
+  init_args:
+    batch_size: 1
+    challenge: multicoil
+    combine_train_val: false
+    data_balancer: null
+    data_path: /common/lidxxlab/cmrchallenge/data/debug_Chushu/debug_T1w_T2w_h5
+    #distributed_sampler: false
+    distributed_sampler: true #by chushu 0712
+    num_adj_slices: 5
+    slice_dataset: data.CmrxReconSliceDataset
+    use_dataset_cache_file: false
+    train_transform:
+      class_path: data.CmrxReconDataTransform
+      init_args:
+        mask_func:
+          class_path: data.subsample.CmrxRecon25MaskFunc
+          init_args:
+            mask_path: /common/lidxxlab/cmrchallenge/data/CMR2025/Processed/Mask/summary.h5 #apply only the radial mask?
+            num_adj_slices: 5
+            num_low_frequencies:
+              - 16
+        uniform_resolution: null
+        use_seed: true
+    val_transform:
+      class_path: data.CmrxReconDataTransform
+      init_args:
+        mask_func:
+          class_path: data.subsample.CmrxRecon25MaskFunc
+          init_args:
+            mask_path: /common/lidxxlab/cmrchallenge/data/CMR2025/Processed/Mask/summary.h5
+            num_adj_slices: 5 #play around with this as well
+            num_low_frequencies:
+              - 16
+        uniform_resolution: null
+        use_seed: true
+
+seed_everything: 42
+
+trainer:
+  inference_mode: false
+  accelerator: gpu
+  strategy: ddp
+  devices: 4  # remember to change to 4 when using .sh!!
+  num_nodes: 1
+
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      project: "cmr2025-check-T1w-images"
+      save_dir: /common/lidxxlab/chushu/PromptMR-plus/CMR2025_wandb_logs
+      name: "check_recon_results_on_holdout_set"
+      log_model: true
+
+  callbacks:
+    - class_path: __main__.CustomWriter
+      init_args:
+        output_dir: /common/lidxxlab/chushu/PromptMR-plus/output_chushu/debug_T3w
+        write_interval: batch_and_epoch
+   #need to fine-tune the parameters here
+   # - class_path: callbacks.check_activation_callback.ActivationStatsCallback
+    #  init_args: #remeber to change the configurations after finishing debug!!
+     #   lr: 1e-5
+      #  inner_steps: 200 #reduce the steps to prevent overshoot
+       # holdout_frac: 0.1
+        #patience_window: 10
+        #log_every_n_steps: 10
+        #save_dir: /common/lidxxlab/chushu/PromptMR-plus/CMR2025_activation_holdout/saved_reconstructions   # NEW: for saving before/after TTT PNGs
+
+model:
+  class_path: pl_modules.PromptMrModule
+  
+#ckpt_path: /common/lidxxlab/chushu/PromptMR-plus/CMR2025_output_with_early_stopping/pretrained_model_weight/02_with_self_loss_epoch=11-step=41112.ckpt
+ckpt_path: /common/lidxxlab/cmrchallenge/code/chaowei/experiments/cmr25/promptmr-plus/CMR2025/deep_recon/uec2kxvx/checkpoints/last.ckpt
+#ckpt_path: /common/lidxxlab/cmrchallenge/code/PromptMR-plus/weights/cmr24-cardiac/promptmr-plus-epoch=11-step=337764.ckpt
+

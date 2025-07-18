@@ -101,8 +101,8 @@ class MaskFunc:
             )
 
         # combine masks together
-        return torch.max(center_mask, accel_mask), num_low_frequencies
-
+        mask = torch.max(center_mask, accel_mask)
+        return mask, num_low_frequencies
     def sample_mask(
         self,
         shape: Sequence[int],
@@ -716,6 +716,7 @@ class CmrxRecon24MaskFunc(MaskFunc):
             mask_type = self.choose_mask()
             mask, num_low_frequencies = self.sample_mask(mask_type, shape, offset, slice_idx, num_t, num_slc)
 
+
         return mask, num_low_frequencies, mask_type
 
     def sample_mask(self,mask_type, shape,offset=None,  slice_idx=None,num_t=None,num_slc=None):
@@ -758,6 +759,179 @@ class CmrxRecon24MaskFunc(MaskFunc):
         return radial_mask_bank
 
 class CmrxRecon24TestValMaskFunc(CmrxRecon24MaskFunc):
+    """
+    Sample data 
+
+    """
+    def __init__(
+        self,
+        num_low_frequencies: Sequence[int],
+        num_adj_slices: int,
+        mask_path: str,
+        seed: Optional[int] = None,
+        test_mask_type: str = 'uniform',
+        test_acc: int = 10
+    ):
+        """
+        Args:
+            center_fractions: Fraction of low-frequency columns to be retained.
+                If multiple values are provided, then one of these numbers is
+                chosen uniformly each time.
+            accelerations: Amount of under-sampling. This should have the same
+                length as center_fractions. If multiple values are provided,
+                then one of these is chosen uniformly each time.
+            allow_any_combination: Whether to allow cross combinations of
+                elements from ``center_fractions`` and ``accelerations``.
+            seed: Seed for starting the internal random number generator of the
+                ``MaskFunc``.
+        """
+
+        self.uniform_mask = FixedLowEquiSpacedMaskFunc(num_low_frequencies, [test_acc], allow_any_combination=True, seed=seed )
+        self.kt_uniform_mask = FixedLowEquiSpacedMaskFunc(num_low_frequencies, [test_acc], allow_any_combination=True, seed=seed )
+        self.kt_random_mask = FixedLowRandomMaskFunc(num_low_frequencies, [test_acc], allow_any_combination=True, seed=seed )
+        self.radial_mask_bank = self._load_masks(mask_path)
+
+        # mask_dict is set according to test config
+        self.mask_dict = {test_mask_type:[test_acc]}
+        self.masks_pool = list(self.mask_dict.keys())
+
+        self.rng = np.random.RandomState(seed)
+
+        self.num_adj_slices = num_adj_slices
+        self.start_adj, self.end_adj = -(num_adj_slices//2), num_adj_slices//2+1
+
+
+
+class CmrxRecon25MaskFunc(MaskFunc):
+    """
+    Sample data 
+
+    """
+    def __init__(
+        self,
+        num_low_frequencies: Sequence[int],
+        num_adj_slices: int,
+        mask_path: str,
+        seed: Optional[int] = None
+    ):
+        """
+        Args:
+            center_fractions: Fraction of low-frequency columns to be retained.
+                If multiple values are provided, then one of these numbers is
+                chosen uniformly each time.
+            accelerations: Amount of under-sampling. This should have the same
+                length as center_fractions. If multiple values are provided,
+                then one of these is chosen uniformly each time.
+            allow_any_combination: Whether to allow cross combinations of
+                elements from ``center_fractions`` and ``accelerations``.
+            seed: Seed for starting the internal random number generator of the
+                ``MaskFunc``.
+        """
+
+        self.uniform_mask = FixedLowEquiSpacedMaskFunc(num_low_frequencies, [4,8,10], allow_any_combination=True, seed=seed )
+        self.kt_uniform_mask = FixedLowEquiSpacedMaskFunc(num_low_frequencies, [4,8,12,16,20,24], allow_any_combination=True, seed=seed )
+        self.kt_random_mask = FixedLowRandomMaskFunc(num_low_frequencies, [4,8,12,16,20,24], allow_any_combination=True, seed=seed )
+        self.radial_mask_bank = self._load_masks(mask_path)
+
+        # mask_dict is set according to cmrxrecon24 challenge settings
+        self.mask_dict = {#'uniform':[4,8,10],
+                           'kt_uniform':[8,16,24],
+                           'kt_random':[8,16,24],
+                           'kt_radial':[8,16,24]}
+        self.masks_pool = list(self.mask_dict.keys())
+
+        self.rng = np.random.RandomState(seed)
+
+        self.num_adj_slices = num_adj_slices
+        self.start_adj, self.end_adj = -(num_adj_slices//2), num_adj_slices//2+1
+
+    def choose_mask(self):
+        '''
+        choose from FixedLowEquiSpacedMaskFunc, FixedLowRandomMaskFunc and radial
+        '''
+        mask_type = self.rng.choice(self.masks_pool)
+        return mask_type
+
+    def __call__(
+        self,
+        shape: Sequence[int],
+        offset: Optional[int] = None,
+        seed: Optional[Union[int, Tuple[int, ...]]] = None,
+        slice_idx: Optional[int] = None,
+        num_t: Optional[int] = None,
+        num_slc: Optional[int] = None
+    ) -> Tuple[torch.Tensor, int]:
+        """
+        Sample and return a k-space mask.
+
+        Args:
+            shape: Shape of k-space.
+            offset: Offset from 0 to begin mask (for equispaced masks). If no
+                offset is given, then one is selected randomly.
+            seed: Seed for random number generator for reproducibility.
+
+        Returns:
+            A 2-tuple containing 1) the k-space mask and 2) the number of
+            center frequency lines.
+        """
+        if len(shape) < 3:
+            raise ValueError("Shape should have 3 or more dimensions")
+        self.seed = seed
+        with temp_seed(self.rng, seed):
+            mask_type = self.choose_mask()
+            mask, num_low_frequencies = self.sample_mask(mask_type, shape, offset, slice_idx, num_t, num_slc)
+
+        return mask, num_low_frequencies, mask_type
+
+    def sample_mask(self,mask_type, shape,offset=None,  slice_idx=None,num_t=None,num_slc=None):
+        
+        if mask_type=='uniform':
+            mask, num_low_frequencies = self.uniform_mask.sample_uniform_mask(shape, offset, self.rng) #, self.seed)
+        elif mask_type=='kt_uniform':
+            mask, num_low_frequencies = self.kt_uniform_mask.sample_kt_mask(shape, offset, self.num_adj_slices, slice_idx, num_t,num_slc, self.rng, self.seed)
+        elif mask_type=='kt_random':
+            mask, num_low_frequencies = self.kt_random_mask.sample_kt_mask(shape, offset, self.num_adj_slices, slice_idx, num_t,num_slc, self.rng)
+        elif mask_type=='kt_radial':
+            ##TODO: codes below need to be wrapped in a MaskFunc as other mask types
+            h,w = shape[-3:-1] # (h,w)
+            acc = self.rng.choice(self.mask_dict[mask_type])
+            num_low_frequencies = 16
+            
+            ##Chaowei: check whether exist in mask bank 
+            if f'acc{acc}_{w}x{h}' not in self.radial_mask_bank.keys():
+                Warning(f"mask {f'acc{acc}_{w}x{h}'} not in mask bank, change to kt_random")
+                mask, num_low_frequencies = self.kt_random_mask.sample_kt_mask(shape, offset, self.num_adj_slices, slice_idx, num_t,num_slc, self.rng)
+            else:
+                mask_ = self.radial_mask_bank[f'acc{acc}_{w}x{h}']
+                num_t = min(num_t, mask_.shape[0])
+                mask_ = mask_[:num_t]
+
+                if self.seed is None: ##* training
+                    ti = self.rng.randint(num_t)
+                else: ##* validation
+                    ##* slice_idx is of range(num_t*num_slc)
+                    ti = slice_idx//num_slc #self.rng.randint(num_t)
+                select_list = self._get_ti_adj_idx_list(ti,num_t)
+                
+                mask = mask_[select_list]
+                mask = mask[...,None] # torch.Size([5, 448, 204,1])
+
+        else:
+            raise ValueError(f"{mask_type} not supported")
+
+        return mask.float(), num_low_frequencies
+
+    def _load_masks(self,mask_path):
+        ''' load cmrxrecon24 pseudo-radial masks from h5 file'''
+        radial_mask_bank = {}
+        with h5py.File(mask_path, 'r') as hf:
+            keys = list(hf.keys())
+            for key_ in keys:
+                radial_mask_bank[key_] = torch.from_numpy(hf[key_][()].transpose(0,2,1))
+        return radial_mask_bank
+
+
+class CmrxRecon25TestValMaskFunc(CmrxRecon25MaskFunc):
     """
     Sample data 
 

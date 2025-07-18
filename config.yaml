@@ -1,0 +1,134 @@
+# lightning.pytorch==2.5.1
+seed_everything: 42
+trainer:
+  accelerator: gpu
+  strategy: ddp
+  devices: auto
+  num_nodes: 1
+  precision: null
+  logger: false
+  callbacks:
+  - class_path: __main__.CustomWriter
+    init_args:
+      output_dir: /common/lidxxlab/chushu/PromptMR-plus/output_chushu/Inference_test
+      write_interval: batch_and_epoch
+  fast_dev_run: false
+  max_epochs: null
+  min_epochs: null
+  max_steps: -1
+  min_steps: null
+  max_time: null
+  limit_train_batches: null
+  limit_val_batches: null
+  limit_test_batches: null
+  limit_predict_batches: null
+  overfit_batches: 0.0
+  val_check_interval: null
+  check_val_every_n_epoch: 1
+  num_sanity_val_steps: null
+  log_every_n_steps: null
+  enable_checkpointing: null
+  enable_progress_bar: null
+  enable_model_summary: null
+  accumulate_grad_batches: 1
+  gradient_clip_val: null
+  gradient_clip_algorithm: null
+  deterministic: null
+  benchmark: null
+  inference_mode: true
+  use_distributed_sampler: true
+  profiler: null
+  detect_anomaly: false
+  barebones: false
+  plugins: null
+  sync_batchnorm: false
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: null
+  model_registry: null
+model:
+  class_path: pl_modules.PromptMrModule
+  init_args:
+    num_cascades: 12
+    num_adj_slices: 5
+    n_feat0: 48
+    feature_dim:
+    - 72
+    - 96
+    - 120
+    prompt_dim:
+    - 24
+    - 48
+    - 72
+    sens_n_feat0: 24
+    sens_feature_dim:
+    - 36
+    - 48
+    - 60
+    sens_prompt_dim:
+    - 12
+    - 24
+    - 36
+    len_prompt:
+    - 5
+    - 5
+    - 5
+    prompt_size:
+    - 64
+    - 32
+    - 16
+    n_enc_cab:
+    - 2
+    - 3
+    - 3
+    n_dec_cab:
+    - 2
+    - 2
+    - 3
+    n_skip_cab:
+    - 1
+    - 1
+    - 1
+    n_bottleneck_cab: 3
+    no_use_ca: false
+    learnable_prompt: false
+    adaptive_input: true
+    n_buffer: 4
+    n_history: 0
+    use_sens_adj: true
+    model_version: promptmr_v2
+    lr: 0.0002
+    lr_step_size: 11
+    lr_gamma: 0.1
+    weight_decay: 0.01
+    use_checkpoint: false
+    compute_sens_per_coil: false
+    pretrain: false
+    pretrain_weights_path: null
+    num_log_images: 16
+data:
+  class_path: pl_modules.InferenceDataModule
+  init_args:
+    slice_dataset: data.CmrxReconInferenceSliceDataset
+    data_path: /common/lidxxlab/cmrchallenge/data/CMR2025/Validation/Task2/TaskR2/MultiCoil
+    test_transform:
+      class_path: data.CmrxReconDataTransform
+      init_args:
+        mask_func: null
+        uniform_resolution: null
+        use_seed: true
+        mask_type: cartesian_or_radial
+        test_num_low_frequencies: 16
+    challenge: multicoil
+    test_filter:
+      class_path: data.FuncFilterString
+      init_args:
+        filter_str: T1w/ValidationSet/UnderSample_TaskR2
+        logic: or
+    batch_size: 1
+    num_workers: 4
+    distributed_sampler: true
+    num_adj_slices: 5
+optimizer: null
+lr_scheduler: null
+return_predictions: null
+ckpt_path: /common/lidxxlab/cmrchallenge/code/chaowei/experiments/cmr25/promptmr-plus/CMR2025/deep_recon/uec2kxvx/checkpoints/last.ckpt

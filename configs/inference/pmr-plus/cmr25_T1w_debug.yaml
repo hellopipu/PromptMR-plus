@@ -1,0 +1,65 @@
+data:
+  class_path: pl_modules.InferenceDataModule
+  init_args:
+    #use_ttt: true #use 
+    slice_dataset: data.CmrxReconInferenceSliceDataset
+    #data_path: /gpfs/home/bingyx01/mridatasets/cmrxrecon2024/validationset/undersample
+    #data_path: /common/lidxxlab/cmrchallenge/data/CMR2025/Validation/Task2/TaskR2/MultiCoil
+    data_path: /common/lidxxlab/cmrchallenge/data/debug_Chushu/debug_T1w_T2w_inference_2025
+    # /common/lidxxlab/cmrchallenge/data/CMR2025/Validation/Task2/TaskR2/MultiCoil
+    #debug_Chushu/debug_T1w_T2w_inference_2025
+    #CMR2025/Validation/Task2/TaskR2/MultiCoil 
+    #/common/lidxxlab/cmrchallenge/data/CMR2025/ChallengeData/MultiCoil
+    #/T1w/TrainingSet/UnderSample_taskR2
+    challenge: multicoil
+    test_transform:
+      class_path: data.CmrxReconDataTransform
+      init_args:
+        mask_func: null
+        uniform_resolution: null
+        use_seed: True
+        mask_type: 'cartesian_or_radial'
+        test_num_low_frequencies: 16
+    num_adj_slices: 5
+    batch_size: 1
+    distributed_sampler: true 
+    test_filter: 
+      class_path: data.FuncFilterString
+      init_args:
+        filter_str: null
+        #T1w/ValidationSet/UnderSample_TaskR2/Center003
+        #Cine/ValidationSet/UnderSample_TaskR2
+        #T1w/ValidationSet/UnderSample_TaskR2
+        # Cine/ValidationSet/UnderSample_TaskR2
+        #/Center005 
+        #T1w/TrainingSet/UnderSample_taskR2
+        #Perfusion/ValidationSet/UnderSample_TaskR2 
+        #Mapping/ValidationSet/UnderSample_Task1/
+
+# dataset specific settings
+seed_everything: 42
+trainer:
+  accelerator: gpu
+  strategy: ddp
+  devices: 4
+  num_nodes: 1
+  logger: False
+  #default_root_dir: /common/lidxxlab/chushu/PromptMR-plus/CMR2025_output_perfusion
+
+
+  callbacks:
+    - class_path: __main__.CustomWriter
+      init_args:
+        #output_dir: _predict/cmr24-cardiac/test_plus
+        #save_dir : CMR2025_output_perfusion
+        output_dir: output_chushu/Inference_debug_T1w
+        write_interval: batch_and_epoch
+model:
+  class_path: pl_modules.PromptMrModule
+  init_args:
+    pretrain: false
+    pretrain_weights_path: null 
+
+ckpt_path: /common/lidxxlab/cmrchallenge/code/chaowei/experiments/cmr25/promptmr-plus/CMR2025/deep_recon/uec2kxvx/checkpoints/last.ckpt 
+# /common/lidxxlab/cmrchallenge/code/PromptMR-plus/weights/cmr24-cardiac/promptmr-plus-epoch=11-step=337764.ckpt
+#this scripts is for running T1w/T2w inference on retrospectively sampled training data, with duplication in both the images and masks of .mat

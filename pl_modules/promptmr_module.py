@@ -44,7 +44,7 @@ class PromptMrModule(MriModule):
         learnable_prompt: bool = False,
         adaptive_input: bool = True,
         n_buffer: int = 4,
-        n_history: int = 0,
+        n_history: int = 0,  # different than configs
         use_sens_adj: bool = True,
         model_version: str = "promptmr_v2",
         lr: float = 0.0002,
@@ -53,6 +53,8 @@ class PromptMrModule(MriModule):
         weight_decay: float = 0.01,
         use_checkpoint: bool = False,
         compute_sens_per_coil: bool = False,
+        pretrain: bool = False,
+        pretrain_weights_path: str = None,
         **kwargs,
     ):
         """
@@ -87,6 +89,8 @@ class PromptMrModule(MriModule):
             weight_decay: Parameter for penalizing weights norm.
             use_checkpoint: Whether to use checkpointing to trade compute for GPU memory.
             compute_sens_per_coil: (bool) whether to compute sensitivity maps per coil for memory saving
+            pretrain: whether to load pretrain weights
+            pretrain_weights_path: path to pretrain weights
         """
         super().__init__(**kwargs)
         self.save_hyperparameters()
@@ -120,6 +124,9 @@ class PromptMrModule(MriModule):
         self.use_checkpoint = use_checkpoint
         self.compute_sens_per_coil = compute_sens_per_coil
         
+        self.pretrain = pretrain
+        self.pretrain_weights_path = pretrain_weights_path
+        
         self.lr = lr
         self.lr_step_size = lr_step_size
         self.lr_gamma = lr_gamma
@@ -150,8 +157,25 @@ class PromptMrModule(MriModule):
             adaptive_input = self.adaptive_input,
             use_sens_adj = self.use_sens_adj,
         )
-
+        
+        self._load_pretrain_weights()
         self.loss = SSIMLoss()
+        
+    def _load_pretrain_weights(self):
+        # load pretrain weights
+        if not self.pretrain:
+            print('Train from scratch, no pretrain weights loaded')
+            return
+        
+        print(f"loading pretrain weights from {self.pretrain_weights_path}")
+        checkpoint = torch.load(self.pretrain_weights_path)
+        upd_state_dict = {}
+        for k, v in checkpoint['state_dict'].items():
+            if 'loss.w' in k:  # Skip this key
+                continue
+            new_key = k.replace('promptmr.', '')  # or just remove 'model.'
+            upd_state_dict[new_key] = v
+        self.promptmr.load_state_dict(upd_state_dict)
 
     def configure_optimizers(self):
 
@@ -215,7 +239,7 @@ class PromptMrModule(MriModule):
         }
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        output_dict = self(batch.masked_kspace, batch.mask, batch.num_low_frequencies, batch.mask_type,
+        output_dict = self(batch.masked_kspace.float(), batch.mask, batch.num_low_frequencies, batch.mask_type,
                            compute_sens_per_coil=self.compute_sens_per_coil)
         output = output_dict['img_pred']
 
@@ -231,6 +255,8 @@ class PromptMrModule(MriModule):
             'output': output.cpu(), 
             'slice_num': batch.slice_num, 
             'fname': batch.fname,
-            'num_slc':  num_slc
+            'num_slc':  num_slc,
+            'batch_idx': batch_idx,
+            'time_frame': batch.num_t
         }
         

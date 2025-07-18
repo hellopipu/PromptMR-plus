@@ -200,6 +200,7 @@ class MriModule(L.LightningModule):
         #     "max_vals": max_vals,
         # }
 
+        
     def log_image(self, key, images, captions):
         # tensorboard
         # self.logger.experiment.add_image(name, image, global_step=self.global_step)
@@ -210,6 +211,7 @@ class MriModule(L.LightningModule):
         #     {key: [wandb.Image(img, caption=caption) for (img,caption) in zip(images,captions)]},
         #     step=self.global_step,
         # )
+
 
 
 
@@ -286,9 +288,9 @@ class MriModule(L.LightningModule):
             torch.tensor(len(losses), dtype=torch.float)
         )
 
-        self.log("validation_loss", val_loss / tot_slice_examples, prog_bar=True) #,sync_dist=True)
+        self.log("validation_loss", val_loss / tot_slice_examples, prog_bar=True,sync_dist=True)
         for metric, value in metrics.items():
-            self.log(f"val_metrics/{metric}", value / tot_examples) #,sync_dist=True)
+            self.log(f"val_metrics/{metric}", value / tot_examples,sync_dist=True)
 
         # print('debug epoch end: ', len(self.validation_step_outputs), metrics["ssim"]/tot_examples, tot_examples)
         self.validation_step_outputs.clear()

@@ -1,0 +1,8 @@
+name: cmr
+channels:
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+dependencies:
+  - python=3.12
+  - git
+prefix: /home/shenc2/miniconda3/envs/cmr
